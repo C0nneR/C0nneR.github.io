@@ -1,73 +1,57 @@
-#Site
-title: 水榭清松-Song Kong
-description: This is Song' home.
-logo: favicon.png
-url: ikongsong.com
-rss_url: /feed.xml
 
-# Jekyll
-permalink:          /blog/:title/
-markdown:           kramdown
-highlighter:        rouge
-kramdown:
-  auto_ids:         true
-  footnote_nr:      1
-  entity_output:    as_char
-  toc_levels:       1..6
-  enable_coderay:   false
-sass:
-  sass_dir:         assets/_sass
-  style:            compressed
+title: Catbook #Your awesome title
+email: #youremail@domain.com
+description: > # this means to ignore newlines until "baseurl"
+  Write an awesome description for your new site here. You can edit this
+  line in _config.yml. It will appear in your document head meta (for
+  Google search results) and in your feed.xml site description.
 
-# Comment
-comment:
-  disqus: kongsong    
-  # duoshuo: kongsong
-  # youyan: 2122392
-  # laibili: MTAyMC8yODgzNC81NDA0
-  gitalk: true
+baseurl: # the subpath of the site
+url: http://starry99.github.io/catbook # the base hostname & protocol for your site
 
-# Website analytics
-google_analytics: UA-82494501-1
-baidu_analytics: 5b31ffbbdc6cff18727f3adf75a03777    #from //hm.baidu.com/hm.js?***
+permalink: /:year-:month/:title
+timezone:
 
-# Author information:
-author:
-  #resume: /resume
-  name: Song Kong     #the name of Blog section
-  about_me: I'm Song Kong. This is my online home & blog, where I share thoughts about front-end development, cloud computing, my daily life and other insteresting topics. Feel free to contact me by email if you have any question.
- 
-# Social Links
-email:               hi@ikongsong.com
-#google.plus:        username
-#twitter:            username
-facebook:            kongsong
-github:              songkong
-stackoverflow:      6438519/song-kong   #from a "http://stackoverflow.com/users/123456/username" link
-linkedin:           kongsong
-#xing:              username
-#instagram:          username
-#lastfm:            username
-#tumblr:            username
-#pinterest:         username
-#foursquare:        username
-#steam:              username
-#dribbble:          username
-#youtube:           username
-#soundcloud:        username
-#weibo:             username
-#flickr:            username
-#codepen:           username
-#keybase:           username
-#xmpp:              username@server.com
-#hackernews:        username
-#behance:           username
+favicon: /assets/img/favicon.ico
 
-# Plugins
-plugins:
-  - jekyll-feed
-  - jekyll-sitemap
-  - jekyll-gist
+google_analytics: #UA—XXXXXXXX-X
+disqus_shortname: #disqus shortname
 
-# Exclude list
-exclude: [README.md, Gemfile, Gemfile.lock, _site, src, vendor, CNAME, LICENSE, Rakefile,.sass-cache,.DS_Store,.idea]
+user:
+  name: Catbook
+  pic: /assets/img/cat.jpg
+  picAlt: "catbook"
+  job: a category-centric theme
+  aboutme: true # comment this out if you don't need the 'about' page.
+
+exclude:
+  - README.md
+  - LICENSE
+  - github
+
+defaults:
+  - scope:
+      path: "_posts"
+      type: posts
+    values:
+      layout: post
+      comment: true   
+
+markdown_ext: "markdown,mkdown,mkdn,mkd,md"
+markdown: kramdown 
+kramdown:  
+  auto_ids: true
+  entity_output: as_char
+  toc_levels: 1..6
+  smart_quotes: lsquo,rsquo,ldquo,rdquo
+  input: GFM
+  hard_wrap: false
+  footnote_nr: 1
+  show_warnings: false
+  enable_coderay: false
+
+# Filtering Content
+show_drafts: null
+limit_posts: 0
+future:      false
+unpublished: false
