@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="文本记录对 CS 4.2 版本的 32 位 HTTP 分段 beacon 的 shellcode 的分析过程，重点分析其定位 DLL 导出函数的代码。前置知识可以参考这篇文章以及《恶意代码分析实战》第 19 章。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分析 CS HTTP 分段 beacon 的 shellcode">
+<meta property="og:url" content="http://example.com/2022/01/21/%E5%88%86%E6%9E%90-CS-HTTP-%E5%88%86%E6%AE%B5-beacon-%E7%9A%84-shellcode/index.html">
+<meta property="og:site_name" content="C0nn3R&#39;s Blog">
+<meta property="og:description" content="文本记录对 CS 4.2 版本的 32 位 HTTP 分段 beacon 的 shellcode 的分析过程，重点分析其定位 DLL 导出函数的代码。前置知识可以参考这篇文章以及《恶意代码分析实战》第 19 章。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/image-20220121145358151.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/image-20220121145911818.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211512829.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211543736.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211548813.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211602633.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211608406.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211626036.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211630540.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211635285.png">
+<meta property="article:published_time" content="2022-01-21T06:33:39.000Z">
+<meta property="article:modified_time" content="2022-01-21T09:06:46.338Z">
+<meta property="article:author" content="C0nn3R">
+<meta property="article:tag" content="Cobalt Strike">
+<meta property="article:tag" content="shellcode">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/image-20220121145358151.png">
+
+<link rel="canonical" href="http://example.com/2022/01/21/%E5%88%86%E6%9E%90-CS-HTTP-%E5%88%86%E6%AE%B5-beacon-%E7%9A%84-shellcode/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>分析 CS HTTP 分段 beacon 的 shellcode | C0nn3R's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">C0nn3R's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">6</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">3</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">4</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/21/%E5%88%86%E6%9E%90-CS-HTTP-%E5%88%86%E6%AE%B5-beacon-%E7%9A%84-shellcode/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="C0nn3R">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="C0nn3R's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          分析 CS HTTP 分段 beacon 的 shellcode
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-01-21 14:33:39 / 修改时间：17:06:46" itemprop="dateCreated datePublished" datetime="2022-01-21T14:33:39+08:00">2022-01-21</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%81%B6%E6%84%8F%E5%88%86%E6%9E%90/" itemprop="url" rel="index"><span itemprop="name">恶意分析</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>文本记录对 CS 4.2 版本的 32 位 HTTP 分段 beacon 的 shellcode 的分析过程，重点分析其定位 DLL 导出函数的代码。前置知识可以参考<a target="_blank" rel="noopener" href="https://www.yuque.com/p1ut0/qtmgyx/aneyo7">这篇文章</a>以及《恶意代码分析实战》第 19 章。</p>
+<span id="more"></span>
+
+<p>从 shellcode 执行处开始动态调试，同时 dump 出 shellcode 用于静态调试备用：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/image-20220121145358151.png" alt="image-20220121145358151"></p>
+<p>步进这个 call（因为 shellcode 的实现通常不是常规的函数，为了防止跑飞，尽量使用步进而不是步过）：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/image-20220121145911818.png"></p>
+<p>经典 call + pop 操纵控制流，前两个 push 将字符串 wininet 压栈，第三个 push 压栈一个神秘数字，大概会是一个散列过的导出符号名（参考《恶意代码分析实战》）。可以合理推测 call ebp 的功能是根据这个散列值找到  LoadLibrary 函数，然后将 wininet 作为参数，加载 wininet.dll。</p>
+<p>在 call ebp 处步进：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211512829.png" alt="image-20220121151242671"></p>
+<p>Windows 32 环境下 fs:[0] 指向 TEB，用 Windbg 看结构体，TEB 偏移 0x30 处指向 PEB：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt !_TEB</span><br><span class="line">ntdll!_TEB</span><br><span class="line">   +0x000 NtTib            : _NT_TIB</span><br><span class="line">   +0x01c EnvironmentPointer : Ptr32 Void</span><br><span class="line">   +0x020 ClientId         : _CLIENT_ID</span><br><span class="line">   +0x028 ActiveRpcHandle  : Ptr32 Void</span><br><span class="line">   +0x02c ThreadLocalStoragePointer : Ptr32 Void</span><br><span class="line">   +0x030 ProcessEnvironmentBlock : Ptr32 _PEB</span><br><span class="line">   +0x034 LastErrorValue   : Uint4B</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p>PEB 偏移 0xc 处指向 PEB_LDR_DATA：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt !_PEB</span><br><span class="line">ntdll!_PEB</span><br><span class="line">   +0x000 InheritedAddressSpace : UChar</span><br><span class="line">   +0x001 ReadImageFileExecOptions : UChar</span><br><span class="line">   +0x002 BeingDebugged    : UChar</span><br><span class="line">   +0x003 BitField         : UChar</span><br><span class="line">   +0x003 ImageUsesLargePages : Pos 0, 1 Bit</span><br><span class="line">   +0x003 IsProtectedProcess : Pos 1, 1 Bit</span><br><span class="line">   +0x003 IsImageDynamicallyRelocated : Pos 2, 1 Bit</span><br><span class="line">   +0x003 SkipPatchingUser32Forwarders : Pos 3, 1 Bit</span><br><span class="line">   +0x003 IsPackagedProcess : Pos 4, 1 Bit</span><br><span class="line">   +0x003 IsAppContainer   : Pos 5, 1 Bit</span><br><span class="line">   +0x003 IsProtectedProcessLight : Pos 6, 1 Bit</span><br><span class="line">   +0x003 IsLongPathAwareProcess : Pos 7, 1 Bit</span><br><span class="line">   +0x004 Mutant           : Ptr32 Void</span><br><span class="line">   +0x008 ImageBaseAddress : Ptr32 Void</span><br><span class="line">   +0x00c Ldr              : Ptr32 _PEB_LDR_DATA</span><br><span class="line">   +0x010 ProcessParameters : Ptr32 _RTL_USER_PROCESS_PARAMETERS</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p>PEB_LDR_DATA 偏移 0x14 处指向 InMemoryOrderModuleList，其结构类型为 LIST_ENTRY：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt !_PEB_LDR_DATA</span><br><span class="line">ntdll!_PEB_LDR_DATA</span><br><span class="line">   +0x000 Length           : Uint4B</span><br><span class="line">   +0x004 Initialized      : UChar</span><br><span class="line">   +0x008 SsHandle         : Ptr32 Void</span><br><span class="line">   +0x00c InLoadOrderModuleList : _LIST_ENTRY</span><br><span class="line">   +0x014 InMemoryOrderModuleList : _LIST_ENTRY</span><br><span class="line">   +0x01c InInitializationOrderModuleList : _LIST_ENTRY</span><br><span class="line">   +0x024 EntryInProgress  : Ptr32 Void</span><br><span class="line">   +0x028 ShutdownInProgress : UChar</span><br><span class="line">   +0x02c ShutdownThreadId : Ptr32 Void</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt !_LIST_ENTRY</span><br><span class="line">ntdll!_LIST_ENTRY</span><br><span class="line">   +0x000 Flink            : Ptr32 _LIST_ENTRY</span><br><span class="line">   +0x004 Blink            : Ptr32 _LIST_ENTRY</span><br></pre></td></tr></table></figure>
+
+<p>参考微软的<a target="_blank" rel="noopener" href="https://docs.microsoft.com/zh-cn/windows/win32/api/winternl/ns-winternl-peb_ldr_data">官方文档</a>，InMemoryOrderModuleList 表示 The head of a doubly-linked list that contains the loaded modules for the process. Each item in the list is a pointer to an <strong>LDR_DATA_TABLE_ENTRY</strong> structure. 查看此结构体：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt !_LDR_DATA_TABLE_ENTRY</span><br><span class="line">ntdll!_LDR_DATA_TABLE_ENTRY</span><br><span class="line">   +0x000 InLoadOrderLinks : _LIST_ENTRY</span><br><span class="line">   +0x008 InMemoryOrderLinks : _LIST_ENTRY</span><br><span class="line">   +0x010 InInitializationOrderLinks : _LIST_ENTRY</span><br><span class="line">   +0x018 DllBase          : Ptr32 Void</span><br><span class="line">   +0x01c EntryPoint       : Ptr32 Void</span><br><span class="line">   +0x020 SizeOfImage      : Uint4B</span><br><span class="line">   +0x024 FullDllName      : _UNICODE_STRING</span><br><span class="line">   +0x02c BaseDllName      : _UNICODE_STRING</span><br><span class="line">   +0x034 FlagGroup        : [4] UChar</span><br><span class="line">   +0x034 Flags            : Uint4B</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+
+<p>注意 InMemoryOrderModuleList 在结构体中的偏移为 0x8，所以取相对<br>InMemoryOrderModuleList 偏移 0x28 实际上是取相对结构体开始偏移 0x28 + 0x8 = 0x30，而 <a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string">UNICODE_STRING 结构</a>的定义如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">typedef struct _UNICODE_STRING &#123;</span><br><span class="line">  USHORT Length;</span><br><span class="line">  USHORT MaximumLength;</span><br><span class="line">  PWSTR  Buffer;</span><br><span class="line">&#125; UNICODE_STRING, *PUNICODE_STRING;</span><br></pre></td></tr></table></figure>
+
+<p>所以相对结构体开始偏移 0x30 取出 Buffer（中间被杀了一次，基址变了）：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211543736.png" alt="image-20220121154303629"></p>
+<p>可以看到取出了 beacon 的文件名 artifact.exe。0x26 + 0x8 = 0x2e，所以取出了 UNICODE_STRING 的 MaximumLength。然后计算取出的文件名的散列值，采用 32 位旋转向右累加散列算法，实例代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">ror</span>(<span class="params">value, count, max_bits</span>):</span></span><br><span class="line">    right = (value &amp; (<span class="number">2</span>**max_bits - <span class="number">1</span>)) &gt;&gt; (count % max_bits)</span><br><span class="line">    left =  (value &lt;&lt; (max_bits - (count % max_bits))) &amp; (<span class="number">2</span>**max_bits - <span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> left | right</span><br><span class="line"></span><br><span class="line">plain = <span class="string">b&quot;\x6E\x00\x74\x00\x64\x00\x6C\x00\x6C\x00\x2E\x00\x64\x00\x6C\x00\x6C\x00\x00\x00&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">hash</span> = <span class="number">0</span></span><br><span class="line"><span class="keyword">for</span> char <span class="keyword">in</span> plain:</span><br><span class="line">    <span class="keyword">if</span> char &gt;= <span class="built_in">ord</span>(<span class="string">&#x27;a&#x27;</span>):</span><br><span class="line">        char -= <span class="number">0x20</span></span><br><span class="line">    <span class="built_in">hash</span> = ror(<span class="built_in">hash</span>, <span class="number">13</span>, <span class="number">32</span>)</span><br><span class="line">    <span class="built_in">hash</span> += char</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">hex</span>(<span class="built_in">hash</span>)[<span class="number">2</span>:].rjust(<span class="number">8</span>, <span class="string">&#x27;0&#x27;</span>))</span><br></pre></td></tr></table></figure>
+<p>算完散列先 push 到栈上暂存：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211548813.png"></p>
+<p>此处 edx 仍然指向 InMemoryOrderModuleList，所以 0x10 + 0x8 指向 DllBase。PE 文件头偏移 0x3c 指向 IMAGE_NT_HEADERS。IMAGE_NT_HEADERS 偏移 0x78 指向<br>IMAGE_OPTIONAL_HEADER 中的 DataDirectory，而 DataDirectory 的第一项就是<br>IMAGE_DIRECTORY_ENTRY_EXPORT。因此 ds:[eax+78] 取导出表的 RVA。</p>
+<p>然后判断该 RVA 是否为 0，如果是，则表明该模块没有导出函数，跳转到 1A0089 处（基址变了，中间又被杀了一次😥），取 InMemoryOrderModuleList 双向链表下一个节点，重复上述操作：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211602633.png" alt="image-20220121160259502"></p>
+<p>RVA 不为零则开始解析导出表：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211608406.png" alt="image-20220121160800304"></p>
+<p>顺便复习一下导出表的结构和解析导出表的过程：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; dt IMAGE_EXPORT_DIRECTORY</span><br><span class="line">ole32!IMAGE_EXPORT_DIRECTORY</span><br><span class="line">   +0x000 Characteristics  : Uint4B</span><br><span class="line">   +0x004 TimeDateStamp    : Uint4B</span><br><span class="line">   +0x008 MajorVersion     : Uint2B</span><br><span class="line">   +0x00a MinorVersion     : Uint2B</span><br><span class="line">   +0x00c Name             : Uint4B</span><br><span class="line">   +0x010 Base             : Uint4B</span><br><span class="line">   +0x014 NumberOfFunctions : Uint4B</span><br><span class="line">   +0x018 NumberOfNames    : Uint4B</span><br><span class="line">   +0x01c AddressOfFunctions : Uint4B</span><br><span class="line">   +0x020 AddressOfNames   : Uint4B</span><br><span class="line">   +0x024 AddressOfNameOrdinals : Uint4B</span><br></pre></td></tr></table></figure>
+
+<p>先从 0x18 获取 NumberOfNames，然后从 0x20 获取 AddressOfNames，遍历每一个函数名，计算散列值，然后在 1A0063 处与栈上的值相加，这个值就是解析导出表之前计算的该 PE 文件名的散列值。然后紧接着下一条语句与栈上的一个值进行比较，这个值就是 call ebp 之前压栈的散列值。在 1A0066 处的跳转语句下条件断点<code>(EFLAGS &amp; 0x40) == 0x40</code>，运行，程序在函数名为 LoadLibraryExA 时断下：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211626036.png" alt="image-20220121162638918"></p>
+<p>取 0x24，即 AddressOfNameOrdinals 的 RVA，此时 ecx 保存函数名 LoadLibraryExA 在<br>AddressOfNames 中的索引。AddressOfNameOrdinals 中元素的长度为 2 字节，取出值保存在 cx。0x1c 取 AddressOfFunctions，将 ecx 的值作为索引，最终取出 LoadLibraryExA 的地址，然后通过 jmp eax 执行，此时的参数正好是 wininet：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211630540.png" alt="image-20220121163046420"></p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/C0nneR.github.io/master/pictures/202201211635285.png" alt="image-20220121163524164"></p>
+<p>后续的函数调用均采用此方式，在 jmp eax 处下断点可以很方便地进行分析。</p>
+
+
+      <div>
+        
+          <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">---------------感谢您的阅读---------------</div>
+    
+</div>
+
+        
+      </div>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>C0nn3R
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://example.com/2022/01/21/%E5%88%86%E6%9E%90-CS-HTTP-%E5%88%86%E6%AE%B5-beacon-%E7%9A%84-shellcode/" title="分析 CS HTTP 分段 beacon 的 shellcode">http://example.com/2022/01/21/分析-CS-HTTP-分段-beacon-的-shellcode/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Cobalt-Strike/" rel="tag"># Cobalt Strike</a>
+              <a href="/tags/shellcode/" rel="tag"># shellcode</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/01/08/%E6%9C%80%E6%96%B0-Win10-%E4%B8%8B-COM-%E7%BB%84%E4%BB%B6-IFileOperation-%E8%B6%8A%E6%9D%83%E5%A4%8D%E5%88%B6%E6%96%87%E4%BB%B6%E7%9A%84%E5%8F%AF%E8%A1%8C%E6%80%A7/" rel="prev" title="最新 Win10 下 COM 组件 IFileOperation 越权复制文件的可行性">
+      <i class="fa fa-chevron-left"></i> 最新 Win10 下 COM 组件 IFileOperation 越权复制文件的可行性
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="C0nn3R"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">C0nn3R</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/C0nneR" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;C0nneR" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+        <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=1447170553&auto=0&height=66"></iframe>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class=""></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">C0nn3R</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">18k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">16 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
