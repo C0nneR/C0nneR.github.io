@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="APT28 比较经典的一个样本，拿来练练手。本文参考了 [1]、[2] 两篇文章，主要是动手实践一遍，另外再加上一些自己的理解。（样本来源、样本基本信息）">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一例 APT28 样本分析">
+<meta property="og:url" content="http://example.com/2022/04/27/%E4%B8%80%E4%BE%8B-APT28-%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="C0nn3R&#39;s Blog">
+<meta property="og:description" content="APT28 比较经典的一个样本，拿来练练手。本文参考了 [1]、[2] 两篇文章，主要是动手实践一遍，另外再加上一些自己的理解。（样本来源、样本基本信息）">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220427215028796.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428223407262.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428223440949.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429112201388.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428103804211.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104010222.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104043718.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429162914559.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429163156359.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429164948073.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429170202246.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429170102868.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104235565.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430141903720.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428105011702.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428105321225.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430143754957.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430143915933.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428142933235.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430163740774.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430145734792.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430154446761.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430150408930.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430150018006.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428143957857.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428144009905.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428144024354.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430154918188.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155459516.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155649775.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155824589.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430163925708.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430164107818.png">
+<meta property="og:image" content="c:/Users/18502/AppData/Roaming/Typora/typora-user-images/image-20220501142155376.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142425363.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142751310.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501144654675.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501145325402.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152014205.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152043663.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152232878.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152929982.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501153140814.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501153201411.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501155233252.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501155540561.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160157475.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160224142.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160408785.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501161457210.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501162803260.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501162825774.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163137882.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163823206.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163836349.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428154559647.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165054516.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165257043.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165444304.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428160217052.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501171102870.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501171741480.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502143652412.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502143912824.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502150853001.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502150930295.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502151056099.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502153629682.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502153714481.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502155019456.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430164107818.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161307219.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161335335.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161505857.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502162219342.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502163015227.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502165820153.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502173656138.png">
+<meta property="article:published_time" content="2022-04-27T13:34:09.000Z">
+<meta property="article:modified_time" content="2022-05-02T10:04:39.467Z">
+<meta property="article:author" content="C0nn3R">
+<meta property="article:tag" content="APT">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220427215028796.png">
+
+<link rel="canonical" href="http://example.com/2022/04/27/%E4%B8%80%E4%BE%8B-APT28-%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>一例 APT28 样本分析 | C0nn3R's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">C0nn3R's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">7</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">3</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">5</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/27/%E4%B8%80%E4%BE%8B-APT28-%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="C0nn3R">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="C0nn3R's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          一例 APT28 样本分析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-04-27 21:34:09" itemprop="dateCreated datePublished" datetime="2022-04-27T21:34:09+08:00">2022-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-05-02 18:04:39" itemprop="dateModified" datetime="2022-05-02T18:04:39+08:00">2022-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%81%B6%E6%84%8F%E5%88%86%E6%9E%90/" itemprop="url" rel="index"><span itemprop="name">恶意分析</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>9.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>APT28 比较经典的一个样本，拿来练练手。本文参考了 [<a target="_blank" rel="noopener" href="https://app.any.run/tasks/d6a8d1db-52c8-4371-b6d3-bf740408bb10/">1</a>]、[<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-272043.htm">2</a>] 两篇文章，主要是动手实践一遍，另外再加上一些自己的理解。（<a target="_blank" rel="noopener" href="https://app.any.run/tasks/d6a8d1db-52c8-4371-b6d3-bf740408bb10/">样本来源</a>、<a target="_blank" rel="noopener" href="https://any.run/report/ff808d0a12676bfac88fd26f955154f8884f2bb7c534b9936510fd6296c543e8/d6a8d1db-52c8-4371-b6d3-bf740408bb10">样本基本信息</a>）</p>
+<span id="more"></span>
+
+<h3 id="1-初步静态分析"><a href="#1-初步静态分析" class="headerlink" title="1 初步静态分析"></a>1 初步静态分析</h3><p>查壳，无壳。查看字符串，没有特别值得注意的字符串，有一些函数名。查看导入函数，导入了三个 DLL。</p>
+<h4 id="1-1-advapi32-dll"><a href="#1-1-advapi32-dll" class="headerlink" title="1.1 advapi32.dll"></a>1.1 advapi32.dll</h4><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220427215028796.png" alt="image-20220427215028652" style="zoom:67%;" />
+
+<p>中间的三个函数是用来 enable 特权的。在这里顺便复习一下特权（privilege）的概念。特权是指一个账户执行某个与系统相关的操作的能力，比如关闭计算机对应的特权就是 SeShutdownPrivilege。特权是可以被允许（enable）和禁止（disable）的。账户登录后获得的令牌中含有一项特权列表，用来表示该账户拥有的特权，以及特权的允许、禁止情况。通过 <code>whoami /priv</code> 查看，管理员账户在 UAC 之前（被过滤的受限令牌）的特权为：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428223407262.png" alt="image-20220428223407262" style="zoom:50%;" />
+
+<p>UAC 权限提升后的特权为：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428223440949.png" alt="image-20220428223440949" style="zoom:50%;" />
+
+<p>有些特权是默认禁用的（disabled），这是因为一般在正常情况下不需要用到这种特权，出于安全的目的就将特权禁用了。要使用这种特权对应的能力，就要先将 disabled 的特权 enable。但是 enable 的时候，只能把 disabled 变成 enabled，<strong>不能无中生有</strong>。所以，如果使用 UAC 之前的管理员账户，想要 enable 管理审核和安全日志的特权（SeSecurityPrivilege）是不可以的，因为受限令牌根本没有该特权。想要使用管理审核和安全日志的特权，必须以管理员身份启动程序，手动 enable 该特权，再使用相应的功能。通过 enable 特权来将普通权限提升至管理员权限也是不行的，这是两个完全不同的概念！</p>
+<p>接下来看看剩下的两个导入函数 GetSidSubAuthorityCount 和 GetSidSubAuthority，这两个 API 不太熟，看名字应该和 SID 有关。首先复习一下代表用户的 SID 的结构。一个 SID 的组成为 S-R-X-Y<sup>1</sup>-Y<sup>2</sup>…Y<sup>n-1</sup>-Y<sup>n</sup>：</p>
+<ul>
+<li>SID 开头的字母 “S” 表示该字符串为 SID</li>
+<li>R 表示 SID 结构的版本号（Revision），Windows 系统中都是 1</li>
+<li>X 表示标识符颁发机构（Identifier Authority）。Windows 特定的账户/组，如 Administrators，该值为 5，Everyone 等通用的账户/组，该值为 1</li>
+<li>剩下的 Y 都是 Subauthority。其中 Y<sup>1</sup> 到 Y<sup>n-1</sup> 表示各子级颁发机构（Domain Identifier），标识各级不同的域。Y<sup>n</sup> 表示域内特定的账户和组，称为相对标识符（Relative Identifier），简称 RID</li>
+</ul>
+<p>SID 结构体的组成如下图所示：（<a target="_blank" rel="noopener" href="https://www.computerweekly.com/news/1280096078/The-structure-of-a-SID">图片来源</a>）</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429112201388.png" alt="image-20220429112201388" style="zoom: 50%;" />
+
+<p>除了具体数值，结构体中还有一个 Subauthority Count 成员用来表示所有的 Subauthority 占几个 DWORD。</p>
+<p>查下文档，<a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-getsidsubauthoritycount">GetSidSubAuthorityCount</a> 返回 SID 结构体中指向 Subauthority Count 的指针。<a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-getsidsubauthority">GetSidSubAuthority</a> 返回指向特定 Subauthority 的指针，可以理解为是对 Subauthority 这个数组按索引取值，索引为该函数的第二个参数。至此这两个函数的功能就差不多弄清楚了，应该是用来读取 SID 中的某个值，估计就是 RID 了。</p>
+<hr>
+<h4 id="1-2-kernel32-dll"><a href="#1-2-kernel32-dll" class="headerlink" title="1.2 kernel32.dll"></a>1.2 kernel32.dll</h4><p>很多导入函数，其中关键的有：</p>
+<ul>
+<li>进程遍历：CreateToolhelp32Snapshot、Process32FirstW、Process32NextW</li>
+<li>文件遍历：FindFirstFileExA、FindNextFileA</li>
+<li>获取环境变量：GetEnvironmentVariableW</li>
+<li>反调试：IsDebugerPresent</li>
+<li>文件操作：WriteFile、CreateFileW、DeleteFileW</li>
+</ul>
+<hr>
+<h4 id="1-3-shell32-dll"><a href="#1-3-shell32-dll" class="headerlink" title="1.3 shell32.dll"></a>1.3 shell32.dll</h4><p>一个导入函数 ShellExecuteW，用于执行。</p>
+<hr>
+<h3 id="2-初步动态分析"><a href="#2-初步动态分析" class="headerlink" title="2 初步动态分析"></a>2 初步动态分析</h3><p>用火绒剑和 <a target="_blank" rel="noopener" href="https://github.com/mandiant/flare-fakenet-ng">fakenet</a> 对样本的动态行为做一个初步的分析。 </p>
+<h4 id="2-1-写文件"><a href="#2-1-写文件" class="headerlink" title="2.1 写文件"></a>2.1 写文件</h4><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428103804211.png" alt="image-20220428103804211" style="zoom: 67%;" />
+
+<p>向 <code>C:Users\test\AppData\Local\</code> 目录下写了两个文件：cdnver.dll 和 cdnver.bat。其中 cdnver.bat 的内容是：<code>start rundll32.exe &quot;C:\Users\test\AppData\Local\cdnver.dll&quot;,#1</code>。</p>
+<hr>
+<h4 id="2-2-写注册表"><a href="#2-2-写注册表" class="headerlink" title="2.2 写注册表"></a>2.2 写注册表</h4><p><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104010222.png" alt="image-20220428104010222"></p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104043718.png" alt="image-20220428104043718" style="zoom:67%;" />
+
+<p>向 <code>HKEY_USERS\SID\Environment\</code>（相当于 <code>HKEY_CURRENT_USER\Environment\</code>）下写<br>UserInitMprLogonScript，内容为 <code>C:Users\test\AppData\Local\cdnver.bat</code>，应该是用于自启动。那么，有没有想过一个问题，为什么这个注册表项可以用于自启动呢？对于问题多问为什么，知其然更知其所以然，可以帮助我们加深对系统的理解，避免成为脚本小子。</p>
+<p>经过一番<a target="_blank" rel="noopener" href="https://www.hexacorn.com/blog/2014/11/14/beyond-good-ol-run-key-part-18/">调查</a>，得知 UserInitMprLogonScript 是由 userinit.exe 读取并执行的，那就逆向 userinit.exe 看看，顺便推荐一个 <a target="_blank" rel="noopener" href="https://github.com/rajkumar-rangaraj/PDB-Downloader/releases/tag/v1.0">pdb 文件下载器</a>。搜字符串 UserInitMprLogonScript，找交叉引用，在 WinMain 里：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429162914559.png" alt="image-20220429162914559" style="zoom:80%;" />
+
+<p>这里 v11 和 v12 就是 UserInitMprLogonScript 的值，即<br><code>C:Users\test\AppData\Local\cdnver.bat</code>。然后稍微下面一点的地方：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429163156359.png" alt="image-20220429163156359" style="zoom:80%;" />
+
+<p>不管是 if 分支还是 else 分支都执行了，所以确实是 userinit.exe 运行了 UserInitMprLogonScript 的值。</p>
+<p>第二个问题，userinit.exe 运行 UserInitMprLogonScript 的值是在杀软运行之前吗？对于这个问题我是存疑的。再经过一番<a target="_blank" rel="noopener" href="https://www.socinvestigation.com/important-windows-processes-for-threat-hunting/">调查</a>，得知 userinit.exe 的父进程是 winlogon.exe。当用户认证通过后，winlogon.exe 启动 userinit.exe 来运行 explorer.exe 和用户登录脚本。另一方面，对于杀软，以火绒为例：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429164948073.png" alt="image-20220429164948073" style="zoom: 67%;" />
+
+<p>它是基于服务运行的，最终起作用的是 HipsTray.exe。通过命令 <code>Get-Process | select name, id, starttime | select-string &lt;PID&gt;</code> 查看 explorer.exe 和 HipsTray.exe 的启动时间：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429170202246.png" alt="image-20220429170202246"></p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220429170102868.png" alt="image-20220429170102868" style="zoom:67%;" />
+
+<p>可以看到杀软确实是后运行的。</p>
+<hr>
+<h4 id="2-3-进程执行"><a href="#2-3-进程执行" class="headerlink" title="2.3 进程执行"></a>2.3 进程执行</h4><p>运行释放出来的 cdnver.dll 的序号为 1 的导出函数：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428104235565.png" alt="image-20220428104235565" style="zoom:67%;" />
+
+<hr>
+<h4 id="2-4-网络"><a href="#2-4-网络" class="headerlink" title="2.4 网络"></a>2.4 网络</h4><p>有两个突出的域名解析，其中 google.com 可能是用来测试网络连接的：</p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430141903720.png" alt="image-20220430141903720"></p>
+<p><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428105011702.png" alt="image-20220428105011702"></p>
+<p>用 VT 查 cdnverify.com 则显示与 Fancy Bear（即 APT 28）相关： </p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428105321225.png" alt="image-20220428105321225" style="zoom: 50%;" />
+
+<p>另外 fakenet 可以观察到发送了大段 base64 编码后的数据，估计是向 C2 发送搜集的本机信息。</p>
+<hr>
+<h3 id="3-深入分析"><a href="#3-深入分析" class="headerlink" title="3 深入分析"></a>3 深入分析</h3><p>一边用 IDA 看，一边用 x64dbg 调。因为导入了 IsDebugerPresent 这个函数，交叉引用找调用<br>IsDebugerPresent 的位置，没有，所以就放心调。 </p>
+<h4 id="3-1-WinMain-→-sub-401DEF"><a href="#3-1-WinMain-→-sub-401DEF" class="headerlink" title="3.1 WinMain → sub_401DEF"></a>3.1 WinMain → sub_401DEF</h4><p>入口点连续调用了三次 sub_401DEF：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430143754957.png" alt="image-20220430143754957" style="zoom:67%;" />
+
+<p>点进去看的话，有一些循环异或，判断为解密函数：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430143915933.png" alt="image-20220430143915933" style="zoom:67%;" />
+
+<p>调试步过可以得到三个被解密出来的字符串：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428142933235.png" alt="image-20220428142933235" style="zoom:80%;" />
+
+<p>将 sub_401DEF 重命名为 _401DEF_decode。</p>
+<hr>
+<h4 id="3-2-WinMain-→-sub-4012D3"><a href="#3-2-WinMain-→-sub-4012D3" class="headerlink" title="3.2 WinMain → sub_4012D3"></a>3.2 WinMain → sub_4012D3</h4><p>后面紧接着调用了 sub_4012D3，如果返回失败程序直接跳到了退出的地方，因此这个函数很重要。进去首先分配堆内存，失败就退出：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430163740774.png" alt="image-20220430163740774" style="zoom:67%;" />
+
+<p>size 是四字节，所以应该是用来放指针的。然后 new 了 0x28 的内存，再调用两次 sub_401063 函数：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430145734792.png" alt="image-20220430145734792" style="zoom: 67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430154446761.png" alt="image-20220430154446761" style="zoom:67%;" />
+
+<p>最后调用 sub_1000，然后结束：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430150408930.png" alt="image-20220430150408930" style="zoom:67%;" />
+
+<p>分别看看这两个函数。</p>
+<h5 id="3-2-1-sub-4012D3-→-sub-401063"><a href="#3-2-1-sub-4012D3-→-sub-401063" class="headerlink" title="3.2.1 sub_4012D3 → sub_401063"></a>3.2.1 sub_4012D3 → sub_401063</h5><p>点进去先分配堆空间，然后循环异或，估计也是解密函数：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430150018006.png" alt="image-20220430150018006" style="zoom:67%;" />
+
+<p>应该是将密文解密到分配的堆空间里。调试步过可以得到两个解密出来的字符串 cdnver.dll 和<br>LOCALAPPDATA：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428143957857.png" alt="image-20220428143957857" style="zoom:80%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428144009905.png" alt="image-20220428144009905" style="zoom:80%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428144024354.png" alt="image-20220428144024354" style="zoom:80%;" />
+
+<p>其中 0x43B300 就是一开始 new 出来的 0x28 大小的内存，估计是个什么结构体。将 sub_401063 重命名为 _401063_decode。</p>
+<hr>
+<h5 id="3-2-2-sub-4012D3-→-sub-401000"><a href="#3-2-2-sub-4012D3-→-sub-401000" class="headerlink" title="3.2.2 sub_4012D3 → sub_401000"></a>3.2.2 sub_4012D3 → sub_401000</h5><p>循环异或，而且是两重循环，应该是比较大的数据了：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430154918188.png" alt="image-20220430154918188" style="zoom:67%;" />
+
+<p>可以看出来是原地读写，运行到第一次读数据的位置，然后跳转到内存查看：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155459516.png" alt="image-20220430155459516" style="zoom: 67%;" />
+
+<p>可以看出密文在可执行文件的数据段，IDA 里也可以看：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155649775.png" alt="image-20220430155649775" style="zoom:67%;" />
+
+<p>异或完成后：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155824589.png" alt="image-20220430155824589" style="zoom:67%;" />
+
+<p>像个 PE 文件了，但是怪怪的。前面有三个字节 0x0A、0xBA、0x00，而且后面也有一些莫名其妙的<br>0x00，后续再观察。将 sub_401000 重命名为 _401000_decode_PE。</p>
+<hr>
+<p>到这里整个 sub_4012D3 就分析完了，它解密两个字符串到分配的堆空间中，并把字符串地址写到 new 出来的结构体里。然后原地解密了数据段的一些内容，疑似 PE。至于最开始在堆上分配的四字节，下写入断点运行可以发现 0x4013E1 处的指令将 new 出来的结构体的地址写入了该地址。将 sub_4012D3 重命名为 _4012D3_decode_str_PE。</p>
+<p>但是分析到现在整个数据链条还是断的。回过头来看看分配四字节堆空间的地方：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430163925708.png" alt="image-20220430163925708" style="zoom:67%;" />
+
+<p>返回值写入了 [edi+4]，而 edi 又等于 ecx，即 this 指针。再回头看调用 0x4012D3 的地方：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430164107818.png" alt="image-20220430164107818" style="zoom:67%;" />
+
+<p>调用前 new 了 0xC 大小的空间，将其内容初始化为 0。那么这个类应该就是贯穿整个样本最重要的类了。这个类的第一个成员变量（第五个字节开始，前四字节是虚函数表指针），就是 sub_4012D3 里在堆中分配的四字节。那么现在整个数据链条就连通了。</p>
+<hr>
+<h4 id="3-3-WinMain-→-sub-4013F7"><a href="#3-3-WinMain-→-sub-4013F7" class="headerlink" title="3.3 WinMain → sub_4013F7"></a>3.3 WinMain → sub_4013F7</h4><p>执行完 sub_4012D3 后，控制流来到 sub_4013F7。开头又是两个解密函数：</p>
+<img src="C:/Users/18502/AppData/Roaming/Typora/typora-user-images/image-20220501142155376.png" alt="image-20220501142155376" style="zoom:67%;" />
+
+<p>动调可以得到 RtlGetCompressionWorkSpaceSize 和 RtlDecompressBuffer 两个字符串。然后通过一次写一个字符的方式在栈上写 ntdll，然后 LoadLibrary：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142425363.png" alt="image-20220501142425363" style="zoom:67%;" />
+
+<p>之后再执行两次 GetProcAddress 来获取<br>RtlGetCompressionWorkSpaceSize 和 RtlDecompressBuffer 两个函数的地址：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142751310.png" alt="image-20220501142751310" style="zoom:67%;" />
+
+<p>所以此样本采取了一定的字符串隐藏和导入函数隐藏技术，来减少静态特征。然后调用<br>RtlGetCompressionWorkSpaceSize，再分配一些堆空间，再调用 RtlDecompressBuffer：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501144654675.png" alt="image-20220501144654675" style="zoom:67%;" />
+
+<p>解压后就得到正常的 PE 了。然后通过 0x40152F 处的指令将 PE 的地址写入之前的那个 0x28 大小的结构体：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501145325402.png" alt="image-20220501145325402" style="zoom:67%;" />
+
+<p>因为进行了多次调试，所以堆分配的地址的基址不一样，但是后两个字节是一样的。将 0x4013F7 重命名为 _4013F_decompress。</p>
+<hr>
+<h4 id="3-3-WinMain-→-sub-40155B"><a href="#3-3-WinMain-→-sub-40155B" class="headerlink" title="3.3 WinMain → sub_40155B"></a>3.3 WinMain → sub_40155B</h4><p>紧接着来到 sub_40155B 函数，该函数最开始调用了 sub_4010CD 函数。</p>
+<h5 id="3-3-1-sub-40155B-→-sub-4010CD"><a href="#3-3-1-sub-40155B-→-sub-4010CD" class="headerlink" title="3.3.1 sub_40155B → sub_4010CD"></a>3.3.1 sub_40155B → sub_4010CD</h5><p>开头依旧是解密字符串，解密了 SystemRoot 和 \System32 两个字符串。然后在 0x401226 处取出之前的结构体中的第五个成员变量，即 LOCALAPPDATA：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152014205.png" alt="image-20220501152014205" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152043663.png" alt="image-20220501152043663" style="zoom:67%;" />
+
+<p>分配一些空间用于存放路径，然后调用 GetEnvironmentVariableW：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152232878.png" alt="image-20220501152232878" style="zoom:67%;" />
+
+<p>调用两次拼接函数，从结构体中取第六个成员变量，即 cdnver.dll，拼接得到完整路径<br><code>C:\Users\test\AppData\Local\cdnver.dll</code>。然后将结构体的第五个成员变量改为这个完整的路径：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501152929982.png" alt="image-20220501152929982" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501153140814.png" alt="image-20220501153140814" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501153201411.png" alt="image-20220501153201411" style="zoom:67%;" />
+
+<p>将 sub_4010CD 重命名为 _4010CD_construct_PE_path。</p>
+<hr>
+<p>回到 sub_40155B，Load kernel32.dll，GetProcAddress 获取 CreateFileW 和 WriteFileW 的地址，然后调用。创建文件 <code>C:\Users\test\AppData\Local\cdnver.dll</code>，将结构体第一个成员变量指向的内容，即解压后得到的 PE 写入该文件。将 sub_40155B 重命名为 _40155B_write_dll。</p>
+<hr>
+<h4 id="3-4-WinMain-→-sub-40264C"><a href="#3-4-WinMain-→-sub-40264C" class="headerlink" title="3.4 WinMain → sub_40264C"></a>3.4 WinMain → sub_40264C</h4><p>首先连续解密了七个字符串：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501155233252.png" alt="image-20220501155233252" style="zoom:67%;" />
+
+<p>然后采用老方法，Load Advapi32.dll，GetProcAddress 获取 RegOpenKeyExW，然后调用：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501155540561.png" alt="image-20220501155540561" style="zoom:67%;" />
+
+<p>0x80000001 代表 HKEY_CURRENT_USER，所以此处打开的注册表项是<br><code>HKEY_CURRENT_USER\Environment\</code>。然后再次获取环境变量 LOCALAPPDATA 的值：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160157475.png" alt="image-20220501160157475" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160224142.png" alt="image-20220501160224142" style="zoom:67%;" />
+
+<p>对于解密出来的字符串 cdnver.dll，循环找子串 <code>.</code>，最终得到后缀名，并将后缀名与 exe 进行比较：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501160408785.png" alt="image-20220501160408785" style="zoom:67%;" />
+
+<p>因为后缀名是 dll，来到处理 dll 的分支，首先调用了 sub_402030 函数。</p>
+<hr>
+<h5 id="3-4-1-sub-40264C-→-sub-402030"><a href="#3-4-1-sub-40264C-→-sub-402030" class="headerlink" title="3.4.1 sub_40264C → sub_402030"></a>3.4.1 sub_40264C → sub_402030</h5><p>解密字符串并将宽字节转换为 ASCII，对以下字符串进行了这种处理：rundll32.exe、#1、cdnver.dll、LOCALAPPDATA、start、cdnver.bat：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501161457210.png" alt="image-20220501161457210" style="zoom:67%;" />
+
+<p>分配三个空间，获取环境变量 LOCALAPPDATA 的值，并拼接字符串将其写到分配的空间中：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501162803260.png" alt="image-20220501162803260" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501162825774.png" alt="image-20220501162825774" style="zoom:67%;" />
+
+<p>然后 Load kernel32.dll，GetProcAddress 获取 CreateFileA 的地址，调用函数，创建文件<br><code>C:\Users\test\AppData\Local\cdnver.bat</code>。接下来拼接字符串得到 cdnver.bat 的内容，写入分配的第三个空间中：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163137882.png" alt="image-20220501163137882" style="zoom:67%;" />
+
+<p>最后调用 WriteFile 将该字符串写入 cdnver.bat。将 sub_402030 重命名为 _402040_write_bat。</p>
+<hr>
+<p>回到 sub_40264C，拼接字符串得到 cdnver.bat 的完整路径：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163823206.png" alt="image-20220501163823206" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501163836349.png" alt="image-20220501163836349" style="zoom:67%;" />
+
+<p>然后，Load Advapi32.dll，GetProcAddress 获取 RegSetKeyExW，调用函数，向<br><code>HKEY_CURRENT_USER\Environment\</code> 写 UserInitMprLogonScript 项，其值为 cdnver.bat 的路径：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428154559647.png" alt="image-20220428154559647" style="zoom:67%;" />
+
+<p>将 sub_40264C 重命名为 _40264C_persistence。</p>
+<hr>
+<h4 id="3-5-WinMain-→-sub-401707"><a href="#3-5-WinMain-→-sub-401707" class="headerlink" title="3.5 WinMain →  sub_401707"></a>3.5 WinMain →  sub_401707</h4><p>首先判断结构体第五的成员变量的值（<code>C:\Users\test\AppData\Local\cdnver.dll</code>）是否以 .dll 结尾，对 exe 文件和 dll 文件采取不同的处理方式，看 dll 文件的处理分支即可。</p>
+<p>解密三个字符串：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165054516.png" alt="image-20220501165054516" style="zoom:67%;" />
+
+<p>然后调用 sub_401D09，根据返回值的不同有两个分支。返回值为 3 执行 if 分支，否则执行 else 分支：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165257043.png" alt="image-20220501165257043" style="zoom:67%;" />
+
+<p>先看 else 分支，拼接字符串作为参数然后通过 ShellExecuteW 执行：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501165444304.png" alt="image-20220501165444304" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220428160217052.png" alt="image-20220428160217052" style="zoom:67%;" />
+
+<hr>
+<h5 id="3-5-1-sub-401707-→-sub-401D09"><a href="#3-5-1-sub-401707-→-sub-401D09" class="headerlink" title="3.5.1 sub_401707 → sub_401D09"></a>3.5.1 sub_401707 → sub_401D09</h5><p>调用 GetCurrentProcess 获取当前进程句柄。调用 OpenProcessToken 获取令牌句柄。调用 GetTokenInformation 两次，参数为 <a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/winnt/ne-winnt-token_information_class">TokenIntegrityLevel</a>，用于获取令牌完整性级别。当参数为 TokenIntegrityLevel 时，返回 <a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_mandatory_label">TOKEN_MANDATORY_LABEL 结构体</a>。第一次调用获取 size，第二次调用获取实际值。</p>
+<p>然后调用 GetSidSubAuthorityCount 获取 SubAuthorityCount 的值。再调用 GetSidSubAuthority 获取 RID（第二个参数设为 SubAuthorityCount - 1）：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501171102870.png" alt="image-20220501171102870" style="zoom:67%;" />
+
+<p>最后依据 RID 的不同返回不同的值。根据微软的<a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/secauthz/well-known-sids">文档</a>，进程 RID 与完整性级别的关系如下：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501171741480.png" alt="image-20220501171741480" style="zoom:67%;" />
+
+<p>RID 与返回值的关系：</p>
+<ul>
+<li>RID == 0x1000：返回 0</li>
+<li>RID &lt; 0x2000：返回 0</li>
+<li>0x2000 ≤ RID &lt; 0x3000：返回 1</li>
+<li>0x3000 ≤ RID &lt; 0x4000：返回 2</li>
+<li>RID ≥ 0x4000：返回 3</li>
+</ul>
+<p>似乎样本并没有考虑 PROTECTED_PROCESS 的情况。当运行的完整性级别为 SYSTEM 时，样本会执行 if 分支。</p>
+<p>将 sub_1D09 重命名为 _401D09_get_integrity_level。</p>
+<hr>
+<p>if 分支内，拼接字符串然后执行 sub_401B02：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502143652412.png" alt="image-20220502143652412" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502143912824.png" alt="image-20220502143912824" style="zoom:67%;" />
+
+<hr>
+<h5 id="3-5-2-sub-401707-→-sub-401B02"><a href="#3-5-2-sub-401707-→-sub-401B02" class="headerlink" title="3.5.2 sub_401707 → sub_401B02"></a>3.5.2 sub_401707 → sub_401B02</h5><p>开头首先调用了 sub_401957 函数。</p>
+<h6 id="3-5-2-1-sub-401B02-→-sub-401957"><a href="#3-5-2-1-sub-401B02-→-sub-401957" class="headerlink" title="3.5.2.1 sub_401B02 → sub_401957"></a>3.5.2.1 sub_401B02 → sub_401957</h6><p>Load Advapi32.dll，GetProcAddress 获取 OpenProcessToken 函数的地址，GetCurrentProcess 获取当前进程句柄。调用 OpenProcessToken 获取当前进程令牌句柄。GetProcAddress 获取 LookupPrivilegeValueW 函数的地址，调用两次，获取 SeSecurityPrivilege 和 SeTcbPrivilege 两个特权的 LUID，然后调用两次 AdjustTokenPrivileges 来 enable 这两个特权。其中 SeSecurityPrivilege 用于管理审核和安全日志，SeTcbPrivilege 用于以操作系统方式操作，允许很多敏感的操作。</p>
+<p>将 sub_401957 重命名为 _401957_enable_privilege。</p>
+<hr>
+<p>回到 sub_401B02，紧接着调用了 sub_401C3D。</p>
+<h6 id="3-5-2-1-sub-401B02-→-sub-401C3D"><a href="#3-5-2-1-sub-401B02-→-sub-401C3D" class="headerlink" title="3.5.2.1 sub_401B02 → sub_401C3D"></a>3.5.2.1 sub_401B02 → sub_401C3D</h6><p>通过 CreateToolhelp32Snapshot、Process32FirstW、Process32NextW 找到 explorer.exe，获取其 PID。然后通过 OpenProcess 和 OpenProccessToken 获取其令牌句柄，然后返回。将 sub_401C3D 重命名为 _401C3D_get_explorer_token。</p>
+<hr>
+<p>回到 sub_401B02，紧接着调用了 sub_4018DC：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502150853001.png" alt="image-20220502150853001" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502150930295.png" alt="image-20220502150930295" style="zoom:67%;" />
+
+<p>里面的逻辑很乱，决定直接步过看效果，将第三个参数指向的字符串写到了第一个参数指向的位置：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502151056099.png" alt="image-20220502151056099" style="zoom:67%;" />
+
+<p>然后，Load Advapi32.dll，GetProcAddress 获取 CreateProcessAsUserW 函数的地址。调用，第一个参数 hToken 为之前获取的 explorer.exe 的令牌句柄，第三个参数 lpCommandLine 即 <code>RunDll32.exe  &quot;C:\Users\test\AppData\Local\cdnver.dll&quot;,#1</code></p>
+<hr>
+<p>总得来说，sub_401707 这个函数是用来执行的，将其重命名为 _401707_exec。但是对于在 SYSTEM 权限下的运行，还有以下两个疑问：</p>
+<ul>
+<li><p>在 SYSTEM 权限下，LOCALAPPDATA 会被解析为</p>
+<p><code>C:\WINDOWS\system32\config\systemprofile\AppData\Local</code>。但实际运行样本会发现样本不能向这个路径写文件（里面只有一个 Microsoft 文件夹），导致运行 CreateProcessAsUserW 报错：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502153629682.png" alt="image-20220502153629682" style="zoom:67%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502153714481.png" alt="image-20220502153714481" style="zoom:67%;" /></li>
+<li><p>一开始对当前进程的令牌 enable 了 SeSecurityPrivilege 和 SeTcbPrivilege 两个特权，但是后续 CreateProcessAsUserW 使用的是 explorer.exe 的令牌，那么 enable 这两个特权的意义何在？另外，根据微软的<a target="_blank" rel="noopener" href="https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasusera">文档</a>，调用 CreateProcessAsUserW 需要 SeIncreaseQuotaPrivilege 特权，但 SYSTEM 用户这个特权是默认 disabled 的，为什么不 enable 这个特权呢？</p>
+</li>
+</ul>
+<hr>
+<h4 id="3-6-WinMain-→-sub-4018AD"><a href="#3-6-WinMain-→-sub-4018AD" class="headerlink" title="3.6 WinMain →  sub_4018AD"></a>3.6 WinMain →  sub_4018AD</h4><p>最后还有一个删除文件的函数，实际调试时没有调用：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502155019456.png" alt="image-20220502155019456" style="zoom:67%;" />
+
+<p>将其重命名为 _4018AD_delete。</p>
+<hr>
+<p>到这里整个样本就基本分析完了，剩下的 cdnver.dll 之后再分析，之前观察到的网络行为不是样本的，而是 cdnver.dll 的。</p>
+<hr>
+<h3 id="4-一些细节"><a href="#4-一些细节" class="headerlink" title="4 一些细节"></a>4 一些细节</h3><h4 id="4-1-类与结构体"><a href="#4-1-类与结构体" class="headerlink" title="4.1 类与结构体"></a>4.1 类与结构体</h4><h4 id="4-1-1-贯穿样本的类与结构体"><a href="#4-1-1-贯穿样本的类与结构体" class="headerlink" title="4.1.1 贯穿样本的类与结构体"></a>4.1.1 贯穿样本的类与结构体</h4><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430164107818.png" alt="image-20220430164107818" style="zoom:67%;" />
+
+<p>12 字节大小，第一个指针为虚函数表，第一个成员变量为指向另一个结构体的指针（下称该结构体为 A），第二个成员变量的值被赋值为 1，应该是起到一些控制效果的布尔值：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161307219.png" alt="image-20220502161307219" style="zoom:80%;" />
+
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161335335.png" alt="image-20220502161335335" style="zoom:80%;" />
+
+<p>结构体 A 有 6 个重要的成员变量：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502161505857.png" alt="image-20220502161505857" style="zoom: 80%;" />
+
+<ul>
+<li>解压后的 PE 的指针</li>
+<li>解压前的 PE 的指针</li>
+<li>解压后的 PE 的 size</li>
+<li>解压前的 PE 的 size</li>
+<li>首先指向 LOCALAPPDATA 字符串，之后指向 cdnver.dll 的完整路径的字符串</li>
+<li>指向 cdnver.dll 字符串</li>
+</ul>
+<hr>
+<h4 id="4-1-2-用于解密的结构体"><a href="#4-1-2-用于解密的结构体" class="headerlink" title="4.1.2 用于解密的结构体"></a>4.1.2 用于解密的结构体</h4><p>实际上 _401DEF_decode 函数也用了一个结构体：</p>
+<img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502162219342.png" alt="image-20220502162219342" style="zoom:67%;" />
+
+<p>16 字节，两个数值，两个指针，应该是密文和 xor key，以及对应的 size：</p>
+<ul>
+<li>密文</li>
+<li>密文 size</li>
+<li>xor key</li>
+<li>xor key size</li>
+</ul>
+<hr>
+<h4 id="4-2-解密逻辑"><a href="#4-2-解密逻辑" class="headerlink" title="4.2 解密逻辑"></a>4.2 解密逻辑</h4><h5 id="4-2-1-401DEF-decode"><a href="#4-2-1-401DEF-decode" class="headerlink" title="4.2.1 _401DEF_decode"></a>4.2.1 _401DEF_decode</h5><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502163015227.png" alt="image-20220502163015227" style="zoom:67%;" />
+
+<p>可以写解密脚本：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">cipher = [<span class="number">0x41</span>, <span class="number">0xA1</span>, <span class="number">0xD1</span>, <span class="number">0xFC</span>, <span class="number">0xC7</span>, <span class="number">0x20</span>, <span class="number">0x6D</span>, <span class="number">0xDA</span>, <span class="number">0x7C</span>, <span class="number">0x8B</span>, <span class="number">0xCF</span>, <span class="number">0xDD</span>, <span class="number">0x6F</span>, <span class="number">0x66</span>, <span class="number">0x24</span>, <span class="number">0x6C</span>, <span class="number">0xE4</span>, <span class="number">0xDD</span>, <span class="number">0x1E</span>, <span class="number">0xDD</span>, <span class="number">0x76</span>, <span class="number">0x5F</span>, <span class="number">0x1E</span>, <span class="number">0xFE</span>, <span class="number">0x8E</span>, <span class="number">0xA3</span>, <span class="number">0x98</span>, <span class="number">0x7F</span>, <span class="number">0x11</span>, <span class="number">0xA6</span>, <span class="number">0x0A</span>, <span class="number">0xFD</span>, <span class="number">0xA3</span>, <span class="number">0xB1</span>, <span class="number">0x67</span>, <span class="number">0x6E</span>, <span class="number">0x77</span>, <span class="number">0x3F</span>, <span class="number">0xD8</span>, <span class="number">0xE1</span>, <span class="number">0x12</span>]</span><br><span class="line">cipher_size = <span class="number">0x28</span></span><br><span class="line">xor_key = [<span class="number">0x12</span>, <span class="number">0xE0</span>, <span class="number">0x09</span>, <span class="number">0x2D</span>, <span class="number">0x48</span>, <span class="number">0xE7</span>, <span class="number">0x39</span>, <span class="number">0xB7</span>, <span class="number">0xC3</span>, <span class="number">0xF7</span>, <span class="number">0x29</span>]</span><br><span class="line">xor_key_size = <span class="number">11</span></span><br><span class="line"></span><br><span class="line">plain = [<span class="number">0</span>] * (cipher_size + <span class="number">2</span>)</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(cipher_size, <span class="number">0</span>, -<span class="number">1</span>):</span><br><span class="line">    plain[i] = cipher[i] ^ cipher[i - <span class="number">1</span>] ^ xor_key[i % xor_key_size]</span><br><span class="line">plain[<span class="number">0</span>] = cipher[<span class="number">0</span>] ^ xor_key[<span class="number">0</span>]</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, cipher_size + <span class="number">2</span>, <span class="number">2</span>):</span><br><span class="line">    <span class="keyword">if</span> plain[i] == <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="built_in">chr</span>(plain[i]), end = <span class="string">&#x27;&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&#x27;&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>这里还有个小坑，实际上 cipher 的 size 是 0x28 + 1</p>
+<hr>
+<h5 id="4-2-2-401000-decode-PE"><a href="#4-2-2-401000-decode-PE" class="headerlink" title="4.2.2 _401000_decode_PE"></a>4.2.2 _401000_decode_PE</h5><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502165820153.png" alt="image-20220502165820153" style="zoom:67%;" />
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">cipher = [<span class="number">0x3A</span>, <span class="number">0x09</span>, <span class="number">0xA6</span>, <span class="number">0xDC</span>, <span class="number">0x8E</span>, <span class="number">0x7F</span>, <span class="number">0xCA</span>, <span class="number">0x5E</span>, <span class="number">0x18</span>, <span class="number">0x2B</span>, <span class="number">0x4E</span>, <span class="number">0xEB</span>, <span class="number">0xB8</span>, <span class="number">0xA7</span>, <span class="number">0x02</span>, <span class="number">0x8A</span>]</span><br><span class="line">cipher_size = <span class="number">16</span></span><br><span class="line">xor_key = [<span class="number">0x39</span>, <span class="number">0x50</span>, <span class="number">0xBE</span>, <span class="number">0x2C</span>, <span class="number">0xD3</span>, <span class="number">0x7B</span>, <span class="number">0x2C</span>, <span class="number">0x7C</span>, <span class="number">0xCB</span>, <span class="number">0xF8</span>]</span><br><span class="line">xor_key_size = <span class="number">10</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> idx <span class="keyword">in</span> <span class="built_in">range</span>(cipher_size):</span><br><span class="line">    <span class="keyword">for</span> xor_key_idx <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">10</span>):</span><br><span class="line">        cipher[idx] ^= (xor_key[xor_key_idx] + idx * xor_key_idx) &amp; <span class="number">0xff</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(cipher_size):</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">hex</span>(cipher[i])[<span class="number">2</span>:].rjust(<span class="number">2</span>, <span class="string">&#x27;0&#x27;</span>), end = <span class="string">&#x27; &#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&#x27;&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="4-2-3-401063-decode"><a href="#4-2-3-401063-decode" class="headerlink" title="4.2.3 _401063_decode"></a>4.2.3 _401063_decode</h5><img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502173656138.png" alt="image-20220502173656138" style="zoom:67%;" />
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">cipher = [<span class="number">0x00000053</span>, <span class="number">0x000001D7</span>, <span class="number">0x000001C8</span>, <span class="number">0x000001E7</span>, <span class="number">0x000001B1</span>, <span class="number">0x0000019D</span>, <span class="number">0x000001E4</span>, <span class="number">0x00000039</span>, <span class="number">0x00000074</span>, <span class="number">0x00000047</span>, <span class="number">0xFFFFFFFF</span>]</span><br><span class="line">xor_key = [<span class="number">0x39</span>, <span class="number">0x50</span>, <span class="number">0xBE</span>, <span class="number">0x2C</span>, <span class="number">0xD3</span>, <span class="number">0x7B</span>, <span class="number">0x2C</span>, <span class="number">0x7C</span>, <span class="number">0xCB</span>, <span class="number">0xF8</span>]</span><br><span class="line">xor_key_size = <span class="number">10</span></span><br><span class="line"></span><br><span class="line">ret = <span class="string">&#x27;&#x27;</span></span><br><span class="line">idx = <span class="number">0</span></span><br><span class="line"><span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">    temp = cipher[idx]</span><br><span class="line">    <span class="keyword">if</span> temp == <span class="number">0xffffffff</span>:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    v8 = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> xor_key_idx <span class="keyword">in</span> <span class="built_in">range</span>(xor_key_size):</span><br><span class="line">        v9 = v8 + xor_key[xor_key_idx]</span><br><span class="line">        v8 += idx</span><br><span class="line">        temp ^= v9</span><br><span class="line">    idx += <span class="number">1</span></span><br><span class="line">    ret += <span class="built_in">chr</span>(temp &amp; <span class="number">0xffff</span>)</span><br><span class="line"><span class="built_in">print</span>(ret)</span><br></pre></td></tr></table></figure>
+
+
+      <div>
+        
+          <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">---------------感谢您的阅读---------------</div>
+    
+</div>
+
+        
+      </div>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>C0nn3R
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://example.com/2022/04/27/%E4%B8%80%E4%BE%8B-APT28-%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90/" title="一例 APT28 样本分析">http://example.com/2022/04/27/一例-APT28-样本分析/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/APT/" rel="tag"># APT</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/01/21/%E5%88%86%E6%9E%90-CS-HTTP-%E5%88%86%E6%AE%B5-beacon-%E7%9A%84-shellcode/" rel="prev" title="分析 CS HTTP 分段 beacon 的 shellcode">
+      <i class="fa fa-chevron-left"></i> 分析 CS HTTP 分段 beacon 的 shellcode
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E5%88%9D%E6%AD%A5%E9%9D%99%E6%80%81%E5%88%86%E6%9E%90"><span class="nav-number">1.</span> <span class="nav-text">1 初步静态分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1-advapi32-dll"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 advapi32.dll</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-2-kernel32-dll"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 kernel32.dll</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-3-shell32-dll"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 shell32.dll</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%88%9D%E6%AD%A5%E5%8A%A8%E6%80%81%E5%88%86%E6%9E%90"><span class="nav-number">2.</span> <span class="nav-text">2 初步动态分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-%E5%86%99%E6%96%87%E4%BB%B6"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 写文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-%E5%86%99%E6%B3%A8%E5%86%8C%E8%A1%A8"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 写注册表</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-%E8%BF%9B%E7%A8%8B%E6%89%A7%E8%A1%8C"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 进程执行</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-%E7%BD%91%E7%BB%9C"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 网络</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">3 深入分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-WinMain-%E2%86%92-sub-401DEF"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 WinMain → sub_401DEF</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-WinMain-%E2%86%92-sub-4012D3"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 WinMain → sub_4012D3</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-2-1-sub-4012D3-%E2%86%92-sub-401063"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 sub_4012D3 → sub_401063</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-2-2-sub-4012D3-%E2%86%92-sub-401000"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 sub_4012D3 → sub_401000</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-WinMain-%E2%86%92-sub-4013F7"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 WinMain → sub_4013F7</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-WinMain-%E2%86%92-sub-40155B"><span class="nav-number">3.4.</span> <span class="nav-text">3.3 WinMain → sub_40155B</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-3-1-sub-40155B-%E2%86%92-sub-4010CD"><span class="nav-number">3.4.1.</span> <span class="nav-text">3.3.1 sub_40155B → sub_4010CD</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-WinMain-%E2%86%92-sub-40264C"><span class="nav-number">3.5.</span> <span class="nav-text">3.4 WinMain → sub_40264C</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-4-1-sub-40264C-%E2%86%92-sub-402030"><span class="nav-number">3.5.1.</span> <span class="nav-text">3.4.1 sub_40264C → sub_402030</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-5-WinMain-%E2%86%92-sub-401707"><span class="nav-number">3.6.</span> <span class="nav-text">3.5 WinMain →  sub_401707</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-5-1-sub-401707-%E2%86%92-sub-401D09"><span class="nav-number">3.6.1.</span> <span class="nav-text">3.5.1 sub_401707 → sub_401D09</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-5-2-sub-401707-%E2%86%92-sub-401B02"><span class="nav-number">3.6.2.</span> <span class="nav-text">3.5.2 sub_401707 → sub_401B02</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#3-5-2-1-sub-401B02-%E2%86%92-sub-401957"><span class="nav-number">3.6.2.1.</span> <span class="nav-text">3.5.2.1 sub_401B02 → sub_401957</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#3-5-2-1-sub-401B02-%E2%86%92-sub-401C3D"><span class="nav-number">3.6.2.2.</span> <span class="nav-text">3.5.2.1 sub_401B02 → sub_401C3D</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-6-WinMain-%E2%86%92-sub-4018AD"><span class="nav-number">3.7.</span> <span class="nav-text">3.6 WinMain →  sub_4018AD</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E4%B8%80%E4%BA%9B%E7%BB%86%E8%8A%82"><span class="nav-number">4.</span> <span class="nav-text">4 一些细节</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-%E7%B1%BB%E4%B8%8E%E7%BB%93%E6%9E%84%E4%BD%93"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 类与结构体</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-1-%E8%B4%AF%E7%A9%BF%E6%A0%B7%E6%9C%AC%E7%9A%84%E7%B1%BB%E4%B8%8E%E7%BB%93%E6%9E%84%E4%BD%93"><span class="nav-number">4.2.</span> <span class="nav-text">4.1.1 贯穿样本的类与结构体</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-2-%E7%94%A8%E4%BA%8E%E8%A7%A3%E5%AF%86%E7%9A%84%E7%BB%93%E6%9E%84%E4%BD%93"><span class="nav-number">4.3.</span> <span class="nav-text">4.1.2 用于解密的结构体</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-%E8%A7%A3%E5%AF%86%E9%80%BB%E8%BE%91"><span class="nav-number">4.4.</span> <span class="nav-text">4.2 解密逻辑</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#4-2-1-401DEF-decode"><span class="nav-number">4.4.1.</span> <span class="nav-text">4.2.1 _401DEF_decode</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-2-2-401000-decode-PE"><span class="nav-number">4.4.2.</span> <span class="nav-text">4.2.2 _401000_decode_PE</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-2-3-401063-decode"><span class="nav-number">4.4.3.</span> <span class="nav-text">4.2.3 _401063_decode</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="C0nn3R"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">C0nn3R</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/C0nneR" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;C0nneR" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+        <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=1447170553&auto=0&height=66"></iframe>
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class=""></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">C0nn3R</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">28k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">25 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
