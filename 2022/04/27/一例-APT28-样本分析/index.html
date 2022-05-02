@@ -60,7 +60,6 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430155824589.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430163925708.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220430164107818.png">
-<meta property="og:image" content="c:/Users/18502/AppData/Roaming/Typora/typora-user-images/image-20220501142155376.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142425363.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142751310.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501144654675.png">
@@ -106,7 +105,7 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502165820153.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220502173656138.png">
 <meta property="article:published_time" content="2022-04-27T13:34:09.000Z">
-<meta property="article:modified_time" content="2022-05-02T10:04:39.467Z">
+<meta property="article:modified_time" content="2022-05-02T10:09:03.787Z">
 <meta property="article:author" content="C0nn3R">
 <meta property="article:tag" content="APT">
 <meta name="twitter:card" content="summary">
@@ -271,7 +270,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-05-02 18:04:39" itemprop="dateModified" datetime="2022-05-02T18:04:39+08:00">2022-05-02</time>
+                <time title="修改时间：2022-05-02 18:09:03" itemprop="dateModified" datetime="2022-05-02T18:09:03+08:00">2022-05-02</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -441,13 +440,10 @@
 
 <p>调用前 new 了 0xC 大小的空间，将其内容初始化为 0。那么这个类应该就是贯穿整个样本最重要的类了。这个类的第一个成员变量（第五个字节开始，前四字节是虚函数表指针），就是 sub_4012D3 里在堆中分配的四字节。那么现在整个数据链条就连通了。</p>
 <hr>
-<h4 id="3-3-WinMain-→-sub-4013F7"><a href="#3-3-WinMain-→-sub-4013F7" class="headerlink" title="3.3 WinMain → sub_4013F7"></a>3.3 WinMain → sub_4013F7</h4><p>执行完 sub_4012D3 后，控制流来到 sub_4013F7。开头又是两个解密函数：</p>
-<img src="C:/Users/18502/AppData/Roaming/Typora/typora-user-images/image-20220501142155376.png" alt="image-20220501142155376" style="zoom:67%;" />
-
-<p>动调可以得到 RtlGetCompressionWorkSpaceSize 和 RtlDecompressBuffer 两个字符串。然后通过一次写一个字符的方式在栈上写 ntdll，然后 LoadLibrary：</p>
+<h4 id="3-3-WinMain-→-sub-4013F7"><a href="#3-3-WinMain-→-sub-4013F7" class="headerlink" title="3.3 WinMain → sub_4013F7"></a>3.3 WinMain → sub_4013F7</h4><p>执行完 sub_4012D3 后，控制流来到 sub_4013F7。开头又是两个解密函数。动调可以得到<br>RtlGetCompressionWorkSpaceSize 和 RtlDecompressBuffer 两个字符串。然后通过一次写一个字符的方式在栈上写 ntdll，然后 LoadLibrary：</p>
 <img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142425363.png" alt="image-20220501142425363" style="zoom:67%;" />
 
-<p>之后再执行两次 GetProcAddress 来获取<br>RtlGetCompressionWorkSpaceSize 和 RtlDecompressBuffer 两个函数的地址：</p>
+<p>之后再执行两次 GetProcAddress 来获取 RtlGetCompressionWorkSpaceSize 和<br>RtlDecompressBuffer 两个函数的地址：</p>
 <img src="https://raw.githubusercontent.com/C0nneR/pictures/master/image-20220501142751310.png" alt="image-20220501142751310" style="zoom:67%;" />
 
 <p>所以此样本采取了一定的字符串隐藏和导入函数隐藏技术，来减少静态特征。然后调用<br>RtlGetCompressionWorkSpaceSize，再分配一些堆空间，再调用 RtlDecompressBuffer：</p>
